@@ -1,0 +1,9 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "WeatherImages__ApiKey": "local-dev-key",
+    "WeatherImages__SasExpiryMinutes": "60"
+  }
+}

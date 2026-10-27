@@ -1,0 +1,71 @@
+name: build-test-deploy
+
+# CI on every push / pull request. CD (deploy to Azure) only on main, and only when the repository
+# variable AZURE_FUNCTIONAPP_NAME is set - see "Build and deploy automatically from GitHub" in the README.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  PROJECT: src/WeatherImages.Functions/WeatherImages.Functions.csproj
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore WeatherImages.slnx
+
+      - name: Build
+        run: dotnet build WeatherImages.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test WeatherImages.slnx --configuration Release --no-build
+
+      - name: Publish
+        run: dotnet publish "${{ env.PROJECT }}" --configuration Release --no-build --output ./publish
+
+      - name: Zip
+        run: cd publish && zip -qr ../functionapp.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: functionapp
+          path: functionapp.zip
+          if-no-files-found: error
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && vars.AZURE_FUNCTIONAPP_NAME != ''
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC login to Azure: no passwords stored in GitHub
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: functionapp
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy zip to the function app
+        run: |
+          az functionapp deployment source config-zip \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_FUNCTIONAPP_NAME }}" \
+            --src functionapp.zip

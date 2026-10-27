@@ -1,0 +1,74 @@
+### ============================================================================================
+### Weather images API  (VS Code "REST Client", Visual Studio .http editor, JetBrains HTTP Client)
+###
+### - deploy.ps1 rewrites the @baseUrl line below with the URL of your deployment.
+### - Put the API key (printed by deploy.ps1, saved in .deploy/api-key.txt) in @apiKey.
+### - Run the requests top to bottom: start a job, then poll the status, then fetch the images.
+### ============================================================================================
+
+# Azure:
+@baseUrl = https://REPLACE-WITH-YOUR-FUNCTION-APP.azurewebsites.net/api
+# Local (func start + Azurite):
+# @baseUrl = http://localhost:7071/api
+
+@apiKey = REPLACE-WITH-API-KEY
+
+
+### --------------------------------------------------------------------------------------------
+### 1. Start an image creation process
+###    Needs the x-api-key header. Returns 202 Accepted + a unique job id immediately:
+###    the work happens in the background via two Azure Storage queues.
+###    Optional: ?count=10 (1-50, default 50; the Buienradar feed currently has 40 stations)
+### --------------------------------------------------------------------------------------------
+# @name startJob
+POST {{baseUrl}}/jobs
+x-api-key: {{apiKey}}
+
+###
+### Same, but only 5 stations (faster to try out). The body variant { "count": 5 } works too.
+# @name startSmallJob
+POST {{baseUrl}}/jobs?count=5
+x-api-key: {{apiKey}}
+
+
+### --------------------------------------------------------------------------------------------
+### 2. Status / progress of the job
+###    status: Queued -> Running -> Completed | CompletedWithErrors | Failed
+###    Progress is read from Azure Table Storage (total / completed / failed / percentComplete).
+### --------------------------------------------------------------------------------------------
+@jobId = {{startJob.response.body.$.jobId}}
+
+GET {{baseUrl}}/jobs/{{jobId}}
+
+
+### --------------------------------------------------------------------------------------------
+### 3. Results: links to every generated image (served from Blob Storage)
+###    200 OK  when the job is finished,
+###    202     while it is still running (with the images that are ready so far + Retry-After).
+###    The links are read-only SAS URLs (private container); fetch the results again for fresh links.
+### --------------------------------------------------------------------------------------------
+GET {{baseUrl}}/jobs/{{jobId}}/images
+
+
+### --------------------------------------------------------------------------------------------
+### 4. Open one image: paste a "url" from the response above (it already contains its SAS token)
+### --------------------------------------------------------------------------------------------
+# GET https://<storageaccount>.blob.core.windows.net/images/<jobId>/6275-arnhem.jpg?sv=...&sig=...
+
+
+### ============================================================================================
+### Error cases
+### ============================================================================================
+
+### Missing / wrong API key -> 401 Unauthorized
+POST {{baseUrl}}/jobs
+
+### Invalid count -> 400 Bad Request
+POST {{baseUrl}}/jobs?count=999
+x-api-key: {{apiKey}}
+
+### Unknown job id -> 404 Not Found
+GET {{baseUrl}}/jobs/00000000000000000000000000000000
+
+### Not a job id -> 404 Not Found
+GET {{baseUrl}}/jobs/not-a-guid/images

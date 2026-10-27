@@ -1,0 +1,26 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+
+## Azure Functions local settings (contain secrets / local connection strings)
+local.settings.json
+
+## deploy.ps1 output: zip, publish folder, API key
+.deploy/
+
+## Azurite (local storage emulator)
+__azurite_db_*.json
+__blobstorage__/
+__queuestorage__/
+__tablestorage__/
+AzuriteConfig
+.azurite/
+
+## editors / OS
+.idea/
+.DS_Store
+Thumbs.db

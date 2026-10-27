@@ -1,0 +1,21 @@
+<Project>
+
+  <!--
+    Security advisories published 2026-10-07 for SixLabors.ImageSharp <= 4.1.1 (no 3.x fix exists; 4.x / Drawing 3.x
+    need a paid Six Labors license key). All five concern code this app never reaches:
+      GHSA-j3p4-wp97-rph4  HistogramEqualization on TIFF input     - not used
+      GHSA-j9gm-c75j-xc9q  TIFF CCITT T4 encoder                   - we only encode JPEG
+      GHSA-jjfr-hcj7-qf5w  TIFF CCITT T6 encoder                   - we only encode JPEG
+      GHSA-wmxv-xphr-5c9g  BigTIFF decoder loop                    - TIFF decoder is not registered (JPEG/PNG only)
+      GHSA-gwg2-r3hj-4w44  ICC profile CLUT parsing                - metadata is skipped when decoding
+    See Imaging/ImageHelper.cs (SafeDecoderOptions). Remove these suppressions when a patched 3.x or a free 4.x exists.
+  -->
+  <ItemGroup>
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-j3p4-wp97-rph4" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-j9gm-c75j-xc9q" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-jjfr-hcj7-qf5w" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-wmxv-xphr-5c9g" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-gwg2-r3hj-4w44" />
+  </ItemGroup>
+
+</Project>
