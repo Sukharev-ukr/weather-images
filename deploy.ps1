@@ -147,8 +147,19 @@ else {
 
     Invoke-Native 'dotnet publish' { dotnet publish $project --configuration Release --output $publishDir --nologo }
 
+    # Build the zip by hand: Windows PowerShell 5.1 (.NET Framework) writes backslash entry names,
+    # which Azure rejects ("Cannot find required .azurefunctions directory"). Entries need '/'.
+    Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    [System.IO.Compression.ZipFile]::CreateFromDirectory($publishDir, $zipFile, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+    $zip = [System.IO.Compression.ZipFile]::Open($zipFile, [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        $base = (Resolve-Path $publishDir).Path.TrimEnd('\', '/')
+        foreach ($file in Get-ChildItem -LiteralPath $base -Recurse -File -Force) {
+            $entryName = $file.FullName.Substring($base.Length + 1).Replace('\', '/')
+            [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $file.FullName, $entryName, [System.IO.Compression.CompressionLevel]::Optimal)
+        }
+    }
+    finally { $zip.Dispose() }
     Write-Host ("Created {0} ({1:N1} MB)" -f $zipFile, ((Get-Item $zipFile).Length / 1MB))
 }
 
