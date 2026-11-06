@@ -18,7 +18,7 @@ param namePrefix string = 'wximg'
 param apiKey string = ''
 
 @description('Flex Consumption runtime version for dotnet-isolated. deploy.ps1 looks up the exact value for the region.')
-param dotnetVersion string = '10.0'
+param dotnetVersion string = '8.0'
 
 @description('Maximum number of instances the app may scale out to.')
 @minValue(40)

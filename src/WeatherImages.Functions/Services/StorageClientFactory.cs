@@ -57,9 +57,15 @@ public static class StorageClientFactory
         return !string.IsNullOrWhiteSpace(connectionString);
     }
 
+    // App settings such as AzureWebJobsStorage__accountName reach IConfiguration under the key
+    // "AzureWebJobsStorage:accountName" ("__" is turned into ":" by the environment variable provider),
+    // so look for that key first and keep the raw "__" name as a fallback.
+    private static string? GetSetting(IConfiguration config, string name) =>
+        config[$"{Setting}:{name}"] ?? config[$"{Setting}__{name}"];
+
     private static Uri ServiceUri(IConfiguration config, string service)
     {
-        var account = config[$"{Setting}__accountName"];
+        var account = GetSetting(config, "accountName");
         if (string.IsNullOrWhiteSpace(account))
         {
             throw new InvalidOperationException(
@@ -71,7 +77,7 @@ public static class StorageClientFactory
 
     private static TokenCredential CreateCredential(IConfiguration config)
     {
-        var clientId = config[$"{Setting}__clientId"];
+        var clientId = GetSetting(config, "clientId");
         return new DefaultAzureCredential(new DefaultAzureCredentialOptions
         {
             // Needed for a user-assigned managed identity; empty = system-assigned / developer login.

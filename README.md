@@ -11,7 +11,7 @@ Blob Storage; progress is kept in Table Storage.
                     ┌─────────────────────┐   1 row/job          ┌────────────────────────────────────────────────┐
                     │ Azure Function app  │ ───────────────────► │ Table Storage:  jobs · jobimages               │
                     │ (Flex Consumption,  │                      └────────────────────────────────────────────────┘
-                    │  .NET 10 isolated)  │
+                    │  .NET 8 isolated)  │
                     └─────────┬───────────┘
               {jobId,count}   │ queue 1: start-jobs
                               ▼
@@ -67,8 +67,9 @@ a bad `count` gives `400`, a missing/wrong key gives `401`.
 
 ## Design notes
 
-* **Hosting: Flex Consumption (Linux).** .NET 10 is not supported on the Linux *Consumption* plan, so the
-  template uses the Flex Consumption plan (scale-to-zero, pay per use).
+* **Hosting: Flex Consumption (Linux).** The template uses the Flex Consumption plan (scale-to-zero, pay per use).
+  It targets .NET 8: with the .NET 10 runtime the Functions host never started on Flex Consumption (all requests hung),
+  .NET 8 works.
 * **No secrets for storage.** The function app has a user-assigned managed identity with *Storage Blob Data Owner*,
   *Queue Data Contributor* and *Table Data Contributor* on one storage account. The host (`AzureWebJobsStorage__…`),
   the queue triggers and the app code all use that identity. Locally the same code uses the Azurite connection string.
@@ -92,7 +93,7 @@ a bad `count` gives `400`, a missing/wrong key gives `401`.
 
 ## Deploy to Azure
 
-Prerequisites: [.NET 10 SDK](https://dot.net), [Azure CLI](https://aka.ms/installazurecli), PowerShell 7+ (or Windows PowerShell 5.1),
+Prerequisites: [.NET 8 SDK or newer](https://dot.net), [Azure CLI](https://aka.ms/installazurecli), PowerShell 7+ (or Windows PowerShell 5.1),
 an Azure subscription where you may create resources and role assignments.
 
 ```powershell
@@ -101,7 +102,7 @@ az login
 ./deploy.ps1 -ResourceGroup rg-wx -Location northeurope -SubscriptionId <id>
 ```
 
-The script: checks the tools and resource providers → asks Azure for the Flex region/.NET 10 runtime string →
+The script: checks the tools and resource providers → asks Azure for the Flex region/.NET 8 runtime string →
 `dotnet publish` + zip → `az group create` + `az deployment group create` (Bicep) →
 `az functionapp deployment source config-zip` → **smoke test** (starts a 3-image job on the live API and downloads
 an image). At the end it prints the API URL and the API key and updates `@baseUrl` in the `.http` file.
@@ -165,7 +166,7 @@ every part.
 deploy.ps1                          publish → Bicep → az deploy → smoke test
 infra/main.bicep                    storage (blob, 2+2 queues, 2 tables), identity + RBAC, App Insights, Flex function app
 http/weather-images.http            API documentation (runnable)
-src/WeatherImages.Functions/        the Azure Functions app (.NET 10, isolated worker)
+src/WeatherImages.Functions/        the Azure Functions app (.NET 8, isolated worker)
   Functions/JobsApi.cs              3 HTTP endpoints
   Functions/QueueWorkers.cs         FanOutJob (queue 1) and GenerateImage (queue 2)
   Services/                         Buienradar + image clients, Table/Queue/Blob access, status logic, API key check
