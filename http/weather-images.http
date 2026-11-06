@@ -7,7 +7,7 @@
 ### ============================================================================================
 
 # Azure:
-@baseUrl = https://REPLACE-WITH-YOUR-FUNCTION-APP.azurewebsites.net/api
+@baseUrl = https://func-wximg-2cax272tubkwi.azurewebsites.net/api
 # Local (func start + Azurite):
 # @baseUrl = http://localhost:7071/api
 
