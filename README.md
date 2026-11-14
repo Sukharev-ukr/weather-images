@@ -50,7 +50,7 @@ a bad `count` gives `400`, a missing/wrong key gives `401`.
 | **Must** | Queue Storage: create, read **and delete** messages | messages are created with `QueueClient` ([`JobQueues.cs`](src/WeatherImages.Functions/Services/JobQueues.cs)); the queue trigger reads them and deletes each one when the function succeeds (retry after failure, `*-poison` queue after 5 attempts) |
 | **Must** | Blob Storage stores and exposes the images | [`ImageStore.cs`](src/WeatherImages.Functions/Services/ImageStore.cs), container `images` |
 | **Must** | Buienradar API for the stations | [`BuienradarClient.cs`](src/WeatherImages.Functions/Services/BuienradarClient.cs) |
-| **Must** | A public API for the photo | [Lorem Picsum](https://picsum.photos) (no key needed) – [`ImageSourceClient.cs`](src/WeatherImages.Functions/Services/ImageSourceClient.cs); URL is configurable |
+| **Must** | A public API for the photo | [Lorem Picsum](https://picsum.photos) (no key needed), with Unsplash CDN photos and a generated background as fallbacks – [`ImageSourceClient.cs`](src/WeatherImages.Functions/Services/ImageSourceClient.cs); URLs are configurable |
 | **Must** | Public API to fetch the generated images | `GET /api/jobs/{id}/images` |
 | **Must** | HTTP files with working links | [`http/weather-images.http`](http/weather-images.http) (`deploy.ps1` writes the real URL into it) |
 | **Must** | Bicep template, including the queues | [`infra/main.bicep`](infra/main.bicep) |
@@ -79,6 +79,9 @@ a bad `count` gives `400`, a missing/wrong key gives `401`.
 * **Failures don't hang a job.** A failing message is retried by the runtime. On the last attempt the worker
   records `Failed` in the table, so the job ends as `CompletedWithErrors`/`Failed` instead of staying `Running`.
   Tested locally with a broken image source and with Buienradar unreachable.
+* **A photo service outage does not fail the job.** Lorem Picsum was unreachable for days in November 2026, and
+  every image of a job failed. Each download now has a 10 s timeout and falls back to fixed Unsplash CDN photos,
+  then to a background generated from the seed, so the weather image is always produced.
 * **Retries are idempotent.** Same seed → same photo, same blob name → overwritten, table rows are upserted.
 * **Fonts are embedded** (Liberation Sans, SIL OFL – see `Fonts/LICENSE-LiberationSans.txt`) because Linux hosts in
   Azure don't guarantee system fonts. The text rendering is adapted from the course sample `ImageEditor`.

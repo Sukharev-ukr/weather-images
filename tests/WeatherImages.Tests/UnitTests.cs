@@ -258,3 +258,40 @@ public class ImageTests
         Assert.Equal("station", ImageStore.Slug("***"));
     }
 }
+
+public class ImageSourceFallbackTests
+{
+    [Fact]
+    public void Tries_the_primary_api_first_then_two_seeded_fallback_photos()
+    {
+        var o = new WeatherImagesOptions();
+
+        var urls = ImageSourceClient.CandidateUrls(o, "job1-6275").ToList();
+
+        Assert.Equal(3, urls.Count);
+        Assert.Equal("https://picsum.photos/seed/job1-6275/1280/720", urls[0]);
+        Assert.All(urls.Skip(1), u => Assert.StartsWith("https://images.unsplash.com/", u));
+        Assert.All(urls.Skip(1), u => Assert.Contains("w=1280&h=720", u));
+        Assert.NotEqual(urls[1], urls[2]);
+    }
+
+    [Fact]
+    public void Picks_the_same_fallback_photo_for_the_same_seed()
+    {
+        var o = new WeatherImagesOptions();
+
+        Assert.Equal(
+            ImageSourceClient.CandidateUrls(o, "job1-6275").ToList(),
+            ImageSourceClient.CandidateUrls(o, "job1-6275").ToList());
+    }
+
+    [Fact]
+    public void Generated_background_is_a_readable_jpeg_of_the_requested_size()
+    {
+        using var stream = ImageSourceClient.CreateGeneratedBackground("job1-6275", 1280, 720);
+
+        var size = ImageHelper.GetSafeSize(stream);
+
+        Assert.Equal(new Size(1280, 720), size);
+    }
+}
