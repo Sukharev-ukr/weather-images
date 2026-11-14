@@ -77,7 +77,7 @@ Write-Step 'Checking prerequisites'
 # ------------------------------------------------------------------------------------------------
 foreach ($tool in 'dotnet', 'az') {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
-        throw "'$tool' was not found on the PATH. Install it first (dotnet SDK 8 or newer: https://dot.net, Azure CLI: https://aka.ms/installazurecli)."
+        throw "'$tool' was not found on the PATH. Install it first (dotnet SDK 10: https://dot.net, Azure CLI: https://aka.ms/installazurecli)."
     }
 }
 
@@ -100,8 +100,7 @@ foreach ($ns in 'Microsoft.Web', 'Microsoft.Storage', 'Microsoft.Insights', 'Mic
     }
 }
 
-# The app runs on the Flex Consumption plan. It targets .NET 8: with the .NET 10 runtime the Functions host never
-# started on Flex Consumption (every request hung; seen in swedencentral and francecentral), .NET 8 works.
+# The app runs on the Flex Consumption plan (the only serverless Linux plan that supports .NET 10).
 $wantedLocation = ($Location -replace '\s', '').ToLowerInvariant()
 $flexLocations = @(az functionapp list-flexconsumption-locations --query '[].name' -o tsv --only-show-errors) |
     ForEach-Object { ($_ -replace '\s', '').ToLowerInvariant() }
@@ -109,11 +108,14 @@ if ($flexLocations -and ($flexLocations -notcontains $wantedLocation)) {
     throw "Region '$Location' does not support Flex Consumption. Use one of: $($flexLocations -join ', ')"
 }
 
-# Ask Azure how it spells the .NET 8 runtime ('8.0' or '8') so the Bicep deployment cannot fail on that.
-$dotnetVersion = @(az functionapp list-flexconsumption-runtimes --location $wantedLocation --runtime dotnet-isolated --query '[].version' -o tsv --only-show-errors) |
-    Where-Object { $_ -match '^8(\.0)?$' } | Select-Object -First 1
+# Check that the region offers .NET 10 on Flex Consumption and take the value Azure expects in functionAppConfig.
+# Careful: each entry has a display 'version' ('10') AND the real config value
+# 'sku.functionAppConfigProperties.runtime.version' ('10.0'). Deploying with '10' is accepted by Azure, but the
+# Functions host then never starts (every request hangs / 503). So read the config value, never the display one.
+$dotnetVersion = @(az functionapp list-flexconsumption-runtimes --location $wantedLocation --runtime dotnet-isolated --query '[].sku.functionAppConfigProperties.runtime.version' -o tsv --only-show-errors) |
+    ForEach-Object { $_.Trim() } | Where-Object { $_ -eq '10.0' } | Select-Object -First 1
 if (-not $dotnetVersion) {
-    throw "Flex Consumption in '$Location' does not offer .NET 8. Pick another region."
+    throw "Flex Consumption in '$Location' does not offer .NET 10 ('10.0'). Pick another region."
 }
 Write-Host "Runtime: dotnet-isolated $dotnetVersion on Flex Consumption in $Location"
 
